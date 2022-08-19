@@ -33,6 +33,7 @@ y = np.sin(theta)
 z = np.random.uniform(low=-3, high=3, size=n_points)
 cylinder = np.stack([x, y, z], axis=-1)
 ```
+![](images/cylinder.png?raw=true)
 
 ### References
 <a id="1">[1]</a> 
