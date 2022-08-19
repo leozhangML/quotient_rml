@@ -7,11 +7,6 @@ by preserving geodesic distances to a base point and local angles, in the projec
 
 Our contribution is to provide a algorithm to preserve, in these projection, the global structure of the original surfaces. The algorithm identifies the edges which make up the boundary of the projection and how these edges are glued together in order to recover the original geometry. The novelty of this idea is that it allows us to differentiate between the projections of a cylinder and plane, as well as represent more complex geometries like the real projective plane in 2-dimensions.
 
-#### References
-<a id="1">[1]</a> 
-Tong, L., Zha, H. Riemannian manifold learning. *IEEE Transactions on Pattern Analysis
-and Machine Intelligence* 30.5 (2008): 796-809.
-
 ## Installation
 
 In the terminal, go to the folder which contains the folder `qrml_pack` and enter the following:
@@ -25,3 +20,9 @@ To import the package, enter the following:
 
 ## Usage
 
+We take a look at applying our algorithm to a cylinder point cloud.
+
+### References
+<a id="1">[1]</a> 
+Tong, L., Zha, H. Riemannian manifold learning. *IEEE Transactions on Pattern Analysis
+and Machine Intelligence* 30.5 (2008): 796-809.
