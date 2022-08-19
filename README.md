@@ -35,6 +35,21 @@ cylinder = np.stack([x, y, z], axis=-1)
 ```
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder.png" width="600" height="600" />
 
+```python
+S.show_boundary(alpha=1, tol=2, c=cylinder[:, 2], show_pointcloud=True, **params)
+```
+
+```python
+_ = S.plot_quotient(c=cylinder[:, 2], alpha=1, tol=2, quotient_tol=15, tol1=5, connection_tol=5, show_pointcloud=True)
+```
+
+## Collaborators
+
+Explainations of the parameters as well as more advanced functions and diagnostics can be found in the tutorial.ipynb file.
+
+## Collaborators
+
+
 ### References
 <a id="1">[1]</a> 
 Tong, L., Zha, H. Riemannian manifold learning. *IEEE Transactions on Pattern Analysis
