@@ -14,8 +14,8 @@ In the terminal, go to the folder which contains the folder `qrml_pack` and ente
 >> python -m pip install -e qrml_pack/
 ```
 To import the package, enter the following:
-```console
->> import qrml
+```python
+import qrml
 ```
 
 ## Usage
