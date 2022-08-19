@@ -33,7 +33,7 @@ y = np.sin(theta)
 z = np.random.uniform(low=-3, high=3, size=n_points)
 cylinder = np.stack([x, y, z], axis=-1)
 ```
-![](images/cylinder.png?raw=true)
+<img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder.png" width="200" height="200" />
 
 ### References
 <a id="1">[1]</a> 
