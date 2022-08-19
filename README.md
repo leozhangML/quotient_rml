@@ -7,14 +7,14 @@ by preserving geodesic distances to a base point and local angles, in the projec
 
 Our contribution is to provide a algorithm to preserve, in these projection, the global structure of the original surfaces. The algorithm identifies the edges which make up the boundary of the projection and how these edges are glued together to recover the original geometry. 
 
-### References
+#### References
 <a id="1">[1]</a> 
 Tong, L., Zha, H. Riemannian manifold learning. *IEEE Transactions on Pattern Analysis
 and Machine Intelligence* 30.5 (2008): 796-809.
 
 ## Installation
 
-Go to the folder which contains the folder `qrml_pack` and enter the following:
+In the terminal, go to the folder which contains the folder `qrml_pack` and enter the following:
 ```console
 >> python -m pip install -e qrml_pack/
 ```
