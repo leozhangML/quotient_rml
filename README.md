@@ -20,7 +20,19 @@ import qrml
 
 ## Usage
 
-We give an example of applying our algorithm to a cylinder point cloud.
+We give a simple example of applying our algorithm to a cylinder point cloud with a thousand points.
+
+```python
+import qrml
+import numpy             as np
+
+n_points = 1000
+theta = np.random.uniform(low=0, high=2*np.pi, size=n_points)
+x = np.cos(theta)
+y = np.sin(theta)
+z = np.random.uniform(low=-3, high=3, size=n_points)
+cylinder = np.stack([x, y, z], axis=-1)
+```
 
 ### References
 <a id="1">[1]</a> 
