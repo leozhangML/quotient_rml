@@ -20,7 +20,7 @@ import qrml
 
 ## Usage
 
-We take a look at applying our algorithm to a cylinder point cloud.
+We give an example of applying our algorithm to a cylinder point cloud.
 
 ### References
 <a id="1">[1]</a> 
