@@ -38,7 +38,7 @@ cylinder = np.stack([x, y, z], axis=-1)
 ```
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder.png" width="600" height="600" />
 
-
+We encapsulate our projection/quotient data and functions in the object `qrml.Simplex`. We have the parameters `k`, `threshold_var`, `edge_sen` and `k0` for our implementation of the "naive" algorithm in [[1]](#1). The method `build_simplex` computes the 1-skeleton on our pointcloud which approximates the underlying manifold structure of our data and `normal_coords` computes the projection.
 
 ```python
 params = {'k':10, 'threshold_var':0.08, 'edge_sen':1, 'k0':100}
