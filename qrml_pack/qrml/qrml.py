@@ -741,7 +741,6 @@ class Simplex:
         ----------
         pointcloud : (n_samples, n_features) np.array
             The pointcloud data from which we build our simplex. 
-            (TODO be able to add points?)
         Simplex : gd.SimplexTree
             Stores the simplex structure with GUDHI.
         edges : (n_samples,) list containing 1-D np.array
@@ -753,29 +752,14 @@ class Simplex:
             The dimension of our simplex.
         coords : (n_samples, self.dim) np.array
             Riemannian normal coordinates from the 'naive' algorithm.
-        Attributes for Testing
-        --------------------
-        vis : (n_edges,) np.array
-            Same as edges but for 'visible' points.
-        dims : (n_samples,) list
-            Collection of 1-D np.arrays which track how
-            PCA estimates the intincit dimension about each point.
-        vars : (n_samples,) list
-            Collection of 1-D np.arrays which track how
-            PCA estimates the intrinsic dimension about each point.
         """
+
         self.pointcloud = None
         self.simplex = gd.SimplexTree()
         self.edges = []
         self.edge_matrix = None
-        self.dim = None  # check other methods for dim estimation
+        self.dim = None
         self.coords = None
-
-        #self.obj = None
-
-        self.vis = None
-        self.dims = None
-        self.vars = None
     
     def find_visible_edge(self, idx, ind, dist):
         """
@@ -929,13 +913,17 @@ class Simplex:
         self.dims = [np.asarray(dims_vars[i][0]) for i in range(n)]
         self.vars = [dims_vars[i][1] for i in range(n)]
 
-    def normal_coords(self, k0=0, **kwargs):
+    def normal_coords(self, k0=0, two_d=False, **kwargs):
         """
         Computes the Riemannian normal coordinates from 
         the 'naive' algorithm.
         """
         if self.edges == None:
-            return False
+            print("No 1-skeleton found! Try build_simplex.")
+            return None
+
+        if two_d:
+            self.dim = 2
 
         n = len(self.pointcloud)
         self.coords = np.zeros([n, self.dim])
@@ -950,7 +938,7 @@ class Simplex:
 
         # set up tangent basis
         tangent_inds = np.random.choice(self.edges[p_idx], size=self.dim, replace=False)
-        tangent_edges = np.transpose(self.pointcloud[tangent_inds] - p)  # problem if dim=1??  (dim, dim)
+        tangent_edges = np.transpose(self.pointcloud[tangent_inds] - p)
         tangent_edges = np.linalg.qr(tangent_edges)[0]  # gives orthonormal basis for T_pM
 
         # compute normal coords for p's edge points
@@ -961,7 +949,7 @@ class Simplex:
         self.coords[self.edges[p_idx]] = np.transpose(edge_coords)
         computed_points[self.edges[p_idx]] = True
 
-        # then interate over all other points based off of increasing distance from p??
+        # then interate over all other points based off of increasing distance from p
         p_dist = dist_matrix[p_idx]
         sorted_inds = np.argsort(p_dist)
 
@@ -980,20 +968,20 @@ class Simplex:
                     extra_computed_points_idx = np.argsort(dist_matrix[idx, extra_computed_points])
                     computed_points_b += list(np.asarray(extra_computed_points)[extra_computed_points_idx[:k0+self.dim-len(computed_points_b)]])
 
-                #computed_points_b += [j for i in computed_points_b for j in self.edges[i] if computed_points[j] and j not in computed_points_b and j!= pred]
                 k = len(computed_points_b)
 
                 b = self.pointcloud[pred]
                 b_prime = self.coords[pred]
 
-                alpha = np.linalg.norm(q-b)  # ||q-b||
+                # optimization to solve for the projection of each point
+                alpha = np.linalg.norm(q-b)
 
-                y = self.pointcloud[computed_points_b] - b  # rows are c_i-b
+                y = self.pointcloud[computed_points_b] - b
                 y /= np.linalg.norm(y, axis=1).reshape(k, 1) * alpha
                 y *= q-b
-                y = np.sum(y, axis=1)  # 1-D np.array
+                y = np.sum(y, axis=1)
 
-                A = self.coords[computed_points_b] - b_prime  # (k, dim) then U (with full_matrices=False) gives (k, dim) for U and U^Tb has (dim,)
+                A = self.coords[computed_points_b] - b_prime
                 A /= np.linalg.norm(A, axis=1).reshape(k, 1) * alpha  
                 
                 m = gp.Model()
@@ -1015,12 +1003,20 @@ class Simplex:
         TODO : add options for quotient boundary
         """
 
+        if np.all(self.coords == None):
+            print('No projection found! Try normal_coords.')
+            return None
+        elif self.dim != 2:
+            print("Dimension of projection is not two - cannot plot boundary!")
+            return None
+
+        # computes the boundary and cleans orientation
         boundary_edges = alpha_shape(self.coords, alpha)
         show_orientation = True
         orientation = find_orientation(boundary_edges, **kwargs)
         orientation = orientation[clean_boundary(self, tol, orientation, boundary_edges)]
     
-        if len(orientation) < len(boundary_edges):  # should be equal
+        if len(orientation) < len(boundary_edges):  # should be equal for well-defined boundary
             show_orientation = False
             print('Boundary is not a 1-cycle - try a different alpha value!')
         
@@ -1031,13 +1027,16 @@ class Simplex:
         plt.axis('equal')
         plt.scatter(self.coords[:, 0], self.coords[:, 1], c=c)
 
+        # handles plotting tear points
         if show_tear_points:
             tear_points = find_tear_points(self, a)
             ax.scatter(self.coords[tear_points, 0], self.coords[tear_points, 1], c='r', marker='x', s=50, label=f'boundary with a={a}')
 
+        # handles plotting the boundary with orientation
         if show_orientation:
             ax = add_boundary(self, orientation, ax)
 
+        # handles showing the connections of boundary points in the projection
         if show_connections:
             short_connections, _ = intersection(self, orientation[:, 0], connection_tol)
             for idx, short_connection in enumerate(short_connections):
@@ -1048,7 +1047,7 @@ class Simplex:
 
         fig.legend()
 
-        # plot of pointcloud
+        # plot of pointcloud in 3-D
         if show_pointcloud:
             fig1 = plt.figure(figsize=(10, 10))
             fig1.suptitle(", ".join([i+"="+str(kwargs[i]) for i in kwargs.keys()]) + f',alpha={alpha}, show_tear_points={show_tear_points}, a={a}, dim={self.dim}, n={len(self.coords)}')
@@ -1078,7 +1077,11 @@ class Simplex:
             connected boundary possible
         """
         if np.all(self.coords==None):
+            print('No projection found! Try normal_coords.')
             return None
+        elif self.dim != 2:
+            print("Dimension of projection is not two - cannot compute quotient!")
+            return -1
 
         # set up boundary with orientation
         edges = alpha_shape(self.coords, alpha=alpha)
@@ -1117,7 +1120,7 @@ class Simplex:
     def plot_quotient(self, c, alpha, tol, quotient_tol, tol1, connection_tol=5, alpha0=0.8, show_pointcloud=False):
 
         if np.all(self.coords == None):
-            print('No projection found!')
+            print('No projection found! Try normal_coords.')
             return None
         
         quotient_info = self.compute_quotient_edges(alpha, tol, quotient_tol, tol1, connection_tol=connection_tol)
@@ -1152,7 +1155,7 @@ class Simplex:
                 if show_pointcloud:
                     ax2 = add_boundary(self, clean_orientation_2d, ax2, three_d=True, alpha0=alpha0)
             else:
-                for idx, non_short_edge in enumerate(non_short_edges):
+                for idx, non_short_edge in enumerate(non_short_edges):  # handles non-short-edges
                     edge = clean_orientation_2d[non_short_edge]
                     l = len(edge)
                     for i, j in edge:
@@ -1161,7 +1164,7 @@ class Simplex:
                             ax2.plot3D([self.pointcloud[i][0], self.pointcloud[j][0]],[self.pointcloud[i][1], self.pointcloud[j][1]], [self.pointcloud[i][2], self.pointcloud[j][2]], color=colours[idx], linewidth=10, alpha=alpha0, linestyle='dotted')
                             
         if short_edges != None:
-            for idx, short_edge in enumerate(short_edges):
+            for idx, short_edge in enumerate(short_edges):  # handles short-edges
                 if orientation_dict[idx]:
                     short_edge_clean_orientation = clean_orientation_2d[short_edge]
                 else:
@@ -1171,7 +1174,7 @@ class Simplex:
                 if show_pointcloud:
                     ax2 = add_boundary(self, short_edge_clean_orientation, ax2, three_d=True, alpha0=alpha0, cmap=orientation_cmaps[colour_dict[idx]], loop=False)
 
-        if non_short_edges == None and short_edges == None:  # if all points are associated 
+        if non_short_edges == None and short_edges == None:  # handles if all points are associated 
             for i, j in clean_orientation_2d:
                 ax1.plot([self.coords[i][0], self.coords[j][0]],[self.coords[i][1], self.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
                 if show_pointcloud:
