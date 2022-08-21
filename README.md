@@ -1,6 +1,6 @@
 # Reconstruction of surfaces from point cloud data
 
-In this project, we give a new method for the manifold reconstruction of surfaces represented in high dimensional spaces as point cloud data, based on the computation of quotient identifications from the original data onto a 2-dimensional projection. 
+In this project, we give a new method for the manifold reconstruction of surfaces represented in high dimensional space as point cloud data, based on the computation of quotient identifications from the original data onto a 2-dimensional projection. 
 
 Our method is based on the “naive” algorithm given in the paper [[1]](#1) which provides a general framework called Riemannian manifold learning for manifold reconstruction from point clouds. The framework attempts to preserve the underlying manifold's intrinsic Riemannian structure from the data,
 by preserving geodesic distances to a base point and local angles, in the projection to a lower dimensional representation. When applied to point cloud data representing surfaces (2-manifolds), we obtain a 2-dimensional projection.
@@ -13,27 +13,40 @@ In the terminal, go to the folder which contains the folder `qrml_pack` and ente
 ```console
 >> python -m pip install -e qrml_pack/
 ```
-To import the package, enter the following:
+To import the package in python, enter the following:
 ```python
 import qrml
 ```
 
 ## Usage
 
-We give a simple example of applying our algorithm to a cylinder point cloud with a thousand points.
+We give a simple example of applying our algorithm to a point cloud with a thousand points, uniformly sampled from a cylinder of radius one and height six.
 
 ```python
 import qrml
 import numpy             as np
 
 n_points = 1000
+np.random.seed(1)
+
 theta = np.random.uniform(low=0, high=2*np.pi, size=n_points)
 x = np.cos(theta)
 y = np.sin(theta)
 z = np.random.uniform(low=-3, high=3, size=n_points)
+
 cylinder = np.stack([x, y, z], axis=-1)
 ```
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder.png" width="600" height="600" />
+
+
+
+```python
+params = {'k':10, 'threshold_var':0.08, 'edge_sen':1, 'k0':100}
+
+S = qrml.Simplex()
+S.build_simplex(cylinder, **params)
+S.normal_coords(**params)
+```
 
 ```python
 S.show_boundary(alpha=1, tol=2, c=cylinder[:, 2], show_pointcloud=True, **params)
