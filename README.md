@@ -54,9 +54,16 @@ We plot our projection and compute the boundary of our projection. We show
 S.show_boundary(alpha=1, tol=2, c=cylinder[:, 2], show_pointcloud=True, **params)
 ```
 
+<img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder_projection.jpeg" width="600" height="600" />
+<img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder_3d_boundary.jpeg" width="600" height="600"/> 
+
+
 ```python
 _ = S.plot_quotient(c=cylinder[:, 2], alpha=1, tol=2, quotient_tol=15, tol1=5, connection_tol=5, show_pointcloud=True)
 ```
+
+<img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder_quotient.jpeg" />
+
 
 ## Collaborators
 
