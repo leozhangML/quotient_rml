@@ -59,6 +59,8 @@ S.show_boundary(alpha=1, tol=2, c=cylinder[:, 2], show_pointcloud=True, **params
 
 We compute and plot the quotient identifications of our boundary via `plot_quotient`. The main parameters of this method are `alpha`, `tol`, `quotient_tol`, `tol1`. The dotted lines represent non-glued edges and the solid lines represent glued edges. Glued edges with the same colour map are glued together in the orientation specified by the gradient of the colouring.
 
+We see that the below representation matches the cannonical construction of the cylinder from a square via the induced quotient topology from identifying the top and bottom edges with the same orientation. 
+
 ```python
 _ = S.plot_quotient(c=cylinder[:, 2], alpha=1, tol=2, quotient_tol=15, tol1=5, show_pointcloud=True)
 ```
