@@ -65,13 +65,11 @@ _ = S.plot_quotient(c=cylinder[:, 2], alpha=1, tol=2, quotient_tol=15, tol1=5, s
 
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder_quotient.jpeg" />
 
+More detailed explanations of the above functions and parameters as well as diagnostics and limitations can be found in the tutorial.ipynb file in `tutorials`. 
 
-## Collaborators
+## Acknowledgements
 
-Explainations of the parameters as well as more advanced functions and diagnostics can be found in the tutorial.ipynb file.
-
-## Collaborators
-
+This was work funded by the London Mathematical Society Undergraduate Research Bursaries 2022, supervised by Ximena Fernández (Durham University).
 
 ### References
 <a id="1">[1]</a> 
