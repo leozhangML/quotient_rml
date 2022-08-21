@@ -38,7 +38,7 @@ cylinder = np.stack([x, y, z], axis=-1)
 ```
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder.png" width="600" height="600" />
 
-We encapsulate our projection/quotient data and functions in the object `qrml.Simplex`. We have the parameters `k`, `threshold_var`, `edge_sen` and `k0` for our implementation of the "naive" algorithm in [[1]](#1). The method `build_simplex` computes the 1-skeleton on our pointcloud which approximates the underlying manifold structure of our data and `normal_coords` computes the projection.
+We encapsulate our projection/quotient data and functions in the object `qrml.Simplex`. We have the parameters `k`, `threshold_var`, `edge_sen` and `k0` for our implementation of the "naive" algorithm in [[1]](#1). The method `build_simplex` computes a 1-skeleton on our pointcloud which approximates the underlying manifold structure of our data and `normal_coords` computes the projection.
 
 ```python
 params = {'k':10, 'threshold_var':0.08, 'edge_sen':1, 'k0':100}
@@ -48,7 +48,7 @@ S.build_simplex(cylinder, **params)
 S.normal_coords(**params)
 ```
 
-We plot our projection and compute the boundary of our projection. We show 
+We plot our projection and compute the boundary of our projection via `show_boundary`. We give this boundary an orientation and plot its correspondence to the original point cloud.
 
 ```python
 S.show_boundary(alpha=1, tol=2, c=cylinder[:, 2], show_pointcloud=True, **params)
@@ -57,9 +57,10 @@ S.show_boundary(alpha=1, tol=2, c=cylinder[:, 2], show_pointcloud=True, **params
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder_projection.jpeg" width="600" height="600" />
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder_3d_boundary.jpeg" width="600" height="600"/> 
 
+We compute and plot the quotient identifications of our boundary via `plot_quotient`. The main parameters of this method are `alpha`, `tol`, `quotient_tol`, `tol1`. The dotted lines represent non-glued edges and the solid lines represent glued edges. Glued edges with the same colour map are glued together in the orientation specified by the gradient of the colouring.
 
 ```python
-_ = S.plot_quotient(c=cylinder[:, 2], alpha=1, tol=2, quotient_tol=15, tol1=5, connection_tol=5, show_pointcloud=True)
+_ = S.plot_quotient(c=cylinder[:, 2], alpha=1, tol=2, quotient_tol=15, tol1=5, show_pointcloud=True)
 ```
 
 <img src="https://github.com/shesturnedtheweansagainstus/quotient_rml/blob/main/images/cylinder_quotient.jpeg" />
