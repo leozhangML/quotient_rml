@@ -69,7 +69,7 @@ More detailed explanations of the above functions and parameters as well as diag
 
 ## Acknowledgements
 
-This was work funded by the London Mathematical Society Undergraduate Research Bursaries 2022, supervised by Ximena Fernández (Durham University).
+This project was funded by the London Mathematical Society Undergraduate Research Bursaries 2022 and was supervised by Ximena Fernández (Durham University).
 
 ### References
 <a id="1">[1]</a> 
