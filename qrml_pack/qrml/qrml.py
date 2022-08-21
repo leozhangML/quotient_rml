@@ -3,14 +3,12 @@ from scipy.sparse           import csr_matrix
 from scipy.sparse.csgraph   import dijkstra
 from sklearn.decomposition  import PCA
 import numpy                as np
-import gudhi                as gd
 import warnings
 import gurobipy             as gp
 from gurobipy               import GRB
 import matplotlib.pyplot    as plt
 from kneed                  import KneeLocator
 from scipy.spatial          import distance_matrix
-from ripser                 import Rips
 from scipy.stats            import mode
 from scipy.spatial          import Delaunay
 from matplotlib.collections import LineCollection
@@ -18,28 +16,8 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 warnings.filterwarnings("ignore")
 
-# local PCA
-def find_coords_relax(A, y, alpha, dim):
-    """
-    
-    """
-    m = gp.Model()
-    m.setParam('OutputFlag', 0)
-    m.setParam(GRB.Param.NonConvex, 2)
-    x = m.addMVar(shape=int(dim), lb=float('-inf'))
-
-    Q = A.T @ A
-    c = -2 * y.T @ A
-
-    obj = x @ Q @ x + c @ x + y.T @ y
-    m.setObjective(obj, GRB.MINIMIZE)
-    m.addConstr(x@x == alpha**2, name="c")
-    m.optimize()
-
-    return x.X
-
-# TODO : check S1 ??
-def local_pca_elbow(pointcloud, max_components, S1):
+# dimension estimation
+def local_pca_elbow(pointcloud, S1):
     """
     Applies PCA to local pointclouds and recover local dimension finding elbows in the function of recovered variances
     """
@@ -47,7 +25,6 @@ def local_pca_elbow(pointcloud, max_components, S1):
     if len(pointcloud) == 1:
         return 1
     
-    #pca = PCA(n_components=max_components)
     pca = PCA()
     _ = pca.fit(pointcloud)
     vs = pca.explained_variance_ratio_
@@ -755,7 +732,6 @@ class Simplex:
         """
 
         self.pointcloud = None
-        self.simplex = gd.SimplexTree()
         self.edges = []
         self.edge_matrix = None
         self.dim = None
@@ -811,6 +787,7 @@ class Simplex:
         """
         Computes the list of safe edges of points from visible edges 
         which connect to the 'idx' point and stores in our SimplexTree.
+
         Parameters
         ----------
         idx : int
@@ -827,49 +804,34 @@ class Simplex:
         -------
         ind : 1-D np.array
             Indexes of safe points connected to the 'idx' point.
-        TODO add rest
         """
         point = self.pointcloud[idx]
         edges = self.pointcloud[ind] - point  # ascending by length
         threshold_edge = edge_sen * np.mean(dist)
-        self.simplex.insert([idx, ind[0]])  # first point is always included
-
-        # for testing
-        dims = []
-        vars = []
         
         for j in range(2, len(edges)+1):  # need len != 1 
             pca = PCA()
             pca.fit_transform(edges[:j])
             var = pca.explained_variance_ratio_
 
-            vars.append(var)
-            dims.append(np.sum(var >= threshold_var))
-
-            if j==2:
+            if j == 2:
                 dim0 = dim1 = np.sum(var >= threshold_var)
             else:
                 dim1 = np.sum(var >= threshold_var)
 
-            if dim1>dim0 and dist[j-1]-dist[j-2]>threshold_edge:
-                #self.edges.append(ind[:j-1])
+            if dim1 > dim0 and dist[j-1]-dist[j-2] > threshold_edge:
                 self.edge_matrix[idx, ind[:j-1]] = dist[:j-1]
                 self.edge_matrix[ind[:j-1], idx] = dist[:j-1]
-                return dims, vars
             
             dim0 = dim1
 
-            self.simplex.insert([idx, ind[j-1]])
-
-        #self.edges.append(ind)
         self.edge_matrix[idx, ind] = dist
         self.edge_matrix[ind, idx] = dist
 
-        return dims, vars
-
-    def build_simplex(self, pointcloud, max_components=5, S1=0.1, k=10, threshold_var=0.08, edge_sen=1, **kwargs):
+    def build_simplex(self, pointcloud, max_components=5, S1=0.2, k=10, threshold_var=0.08, edge_sen=1, **kwargs):
         """
         Computes the edges of our simplex and the GUDHI simplex tree.
+
         Parameters
         ----------
         pointcloud : (n_samples, n_features) np.array
@@ -891,33 +853,19 @@ class Simplex:
         inds = inds[:, 1:]
 
         visible_edges = [self.find_visible_edge(i, inds[i], dists[i]) for i in range(n)]
-        self.vis = visible_edges
         dims_vars = [self.find_safe_edges(i, visible_edges[i][0], visible_edges[i][1], threshold_var, edge_sen) for i in range(n)]
         self.edges = [np.where(self.edge_matrix[i]!=0)[0] for i in range(n)]  # ensures can see all edges to i
 
-        max_components = min(max_components, len(pointcloud[0]))
-        local_dims = [local_pca_elbow(pointcloud[edges], max_components, S1) for edges in self.edges]
-        self.local_dims = local_dims
+        local_dims = [local_pca_elbow(pointcloud[edges], S1) for edges in self.edges]
         self.dim = mode(local_dims, axis=None)[0][0]
-
-        #self.dim = np.max(local_dims)  # check
-        #self.dim = int(np.median(local_dims[local_dims!=0]))
-        #self.dim = mode(local_dims[local_dims!=0])[0][0]
-
         self.edge_matrix = csr_matrix(self.edge_matrix)
-
-        #self.simplex.expansion(1000)  # likely max needed
-        #self.dim = self.simplex.dimension()
-
-        # for testing (TODO: convert with logging)
-        self.dims = [np.asarray(dims_vars[i][0]) for i in range(n)]
-        self.vars = [dims_vars[i][1] for i in range(n)]
 
     def normal_coords(self, k0=0, two_d=False, **kwargs):
         """
         Computes the Riemannian normal coordinates from 
         the 'naive' algorithm.
         """
+
         if self.edges == None:
             print("No 1-skeleton found! Try build_simplex.")
             return None
@@ -958,12 +906,12 @@ class Simplex:
                 continue
             else:
                 q = self.pointcloud[idx]
-                pred = predecessors[p_idx, idx]  # (index of) point before idx on the shortest path from p to idx ! not -9999
+                pred = predecessors[p_idx, idx]  # (index of) point before idx on the shortest path from p to idx
                 computed_points_b = [i for i in self.edges[pred] if computed_points[i]]
 
                 # we add the indexes of computed points connected to the c_i which are not already in the list and are not b
 
-                if len(computed_points_b) < self.dim+k0:  # TODO change how many points we take?
+                if len(computed_points_b) < self.dim+k0:  # k0 is extra parameter
                     extra_computed_points = [j for i in computed_points_b for j in self.edges[i] if computed_points[j] and j not in computed_points_b and j!= pred]
                     extra_computed_points_idx = np.argsort(dist_matrix[idx, extra_computed_points])
                     computed_points_b += list(np.asarray(extra_computed_points)[extra_computed_points_idx[:k0+self.dim-len(computed_points_b)]])
@@ -1076,6 +1024,7 @@ class Simplex:
             allow for more connectivity as the algo finds the least 
             connected boundary possible
         """
+
         if np.all(self.coords==None):
             print('No projection found! Try normal_coords.')
             return None
@@ -1118,6 +1067,9 @@ class Simplex:
         return short_edges, non_short_edges, glued_edges, orientation, clean_orientation, same_orientation, orientation_dict, colour_dict
 
     def plot_quotient(self, c, alpha, tol, quotient_tol, tol1, connection_tol=5, alpha0=0.8, show_pointcloud=False):
+        """
+        
+        """
 
         if np.all(self.coords == None):
             print('No projection found! Try normal_coords.')
