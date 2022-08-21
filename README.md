@@ -48,6 +48,8 @@ S.build_simplex(cylinder, **params)
 S.normal_coords(**params)
 ```
 
+We plot our projection and compute the boundary of our projection. We show 
+
 ```python
 S.show_boundary(alpha=1, tol=2, c=cylinder[:, 2], show_pointcloud=True, **params)
 ```
