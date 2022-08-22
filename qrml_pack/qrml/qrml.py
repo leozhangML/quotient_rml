@@ -225,28 +225,68 @@ def add_boundary(S, orientation, ax, three_d=False, alpha0=0.5, cmap='cool', loo
 # quotient identification functions
 def orientation_dist(current_idx, short_node_idx, n):
     """
-    The idxs are in terms of clean_orientation
-    n : length of clean_orientation
+    Computes the distance (how many steps away) between 
+    points in the orientated boundary of size n.
+
+    Parameters
+    ----------
+    current_idx : int
+        Index of point in orientation.
+    short_node_idx : int
+        Index of point in orientation
+    n : int 
+        length of orientation.
+    
+    Returns
+    -------
+    out : int
+        How many steps away the input indexes are.
     """
 
     return min((current_idx-short_node_idx)%n, (-current_idx+short_node_idx)%n)
 
 def clean_boundary(S, tol, orientation, boundary_edges):
     """
-    tol is at least 2 
-    TODO : try to make tol scale invariant in some way 
+    We "clean" our orientated boundary by closing up
+    loops in the boundary - given by points in the boundary
+    connecting (by the 1-skeleton) to points other than its neighbours 
+    in the boundary.
+
+    For a given point in the boundary, if it connects to another point in
+    the boundary at most tol points ahead (in the orientated boundary),
+    then we close up this short-circuited loop by discarding the intermediate 
+    points.
+
+    Parameters
+    ----------
+    S : Simplex object
+    tol : int >= 2
+        Length of loops to close up.
+    orientation : (num_edges, 2) np.array 
+        The ith row gives the indexes (j, k) of the connected 
+        points of the ith edge in the orientated boundary.
+    boundary_edges : (num_edges,) set 
+        Set of (i,j) pairs representing edges of the 
+        alpha-shape. (i,j) are the indices in the points array.
+
+    Returns
+    -------
+    included : (num_edges,) bool np.array
+        The ith entry is True if the ith point in the orientated
+        boundary is included in the "clean" boundary.
     """
 
     if len(np.unique(orientation[:, 0])) != len(boundary_edges):  # should be equal for 1-cycle
         print('Boundary is not a well-defined 1-cycle - try a different alpha value!')
         return -1
-    
+
     orientation = orientation[:, 0]  # in terms of the indicies of S.coords in boundary
     n = len(orientation)
 
     included = np.full(n, True)
     order = {node: count for count, node in enumerate(orientation)}  # (node, place in orientation)
-    
+
+    # as the boundary is dynamically changing, we loop until no more changes 
     keep_looping = True
     while keep_looping:
         keep_looping = False
@@ -256,7 +296,7 @@ def clean_boundary(S, tol, orientation, boundary_edges):
                 continue
             else:
                 visible_nodes = []
-                for i in range(1, n):  # finds the visible nodes from node_idx TODO check edge case!
+                for i in range(1, n):  # finds the visible nodes from node_idx
                     if included[(node_idx+i)%n] == False:
                         continue
                     else:
@@ -282,24 +322,27 @@ def clean_boundary(S, tol, orientation, boundary_edges):
 
 def intersection(S, clean_orientation, connection_tol):
     """
+    For points in orientation
+
+
     Parameters:
     -----------
-
-    order             : dict of node:order (in original orientation)
+    S : Simplex Object
+    clean_orientation : (num_edges,) np.array 
+        The array lists the indexes of boundary points in order
+        (in terms of S.coords).
+    connection_tol : non-negative int
 
     Returns:
     --------
-
-    short_connections : list; ith element is the list of short-circuit 
-                        connections of the ith node with the 
-                        predeccesor and succesor (in orientation)
-                        removed.
-    short_order       : list; ith element is the list of the orders (in 
-                        original boundary) of the short-circuit connections
-                        to the ith node (in orientation).
-    short_positions   : 1-D bool np.array. ith element is True if a short-circuit
-                        element.
+    short_connections : list
+        The ith element is the list of short-circuit connections 
+        (in terms of S.coords indexes) of the ith node with 
+        local points - as specified by connection_tol - removed.
+    short_idxs : list
+        List of the indexes of short-circuit points
     """
+
     n = len(clean_orientation)
     set_clean_orientation = set(clean_orientation)
     short_connections = []
@@ -307,7 +350,6 @@ def intersection(S, clean_orientation, connection_tol):
 
     for i, node in enumerate(clean_orientation):
         local_edges = set(S.edges[node])
-        #neighbour_edges = set([clean_orientation[(i-1)%n], clean_orientation[(i+1)%n]])  # remove neighbouring points
         neighbour_edges = set(clean_orientation[(i+j)%n] for j in range(-connection_tol, connection_tol+1)) 
         local_edges -= neighbour_edges
         local_edges = local_edges.intersection(set_clean_orientation)
@@ -341,6 +383,7 @@ def identify_edges(n, short_idxs, quotient_tol):
         Each list gives the indexes in clean_orientation of the 
         non-connected edges.
     """
+
     short_edges = []
     non_short_edges = []
     base = short_idxs[0]
@@ -395,12 +438,14 @@ def refine_edges(short_edges, tol1, clean_orientation, short_connections):  # TO
         ith element is the list of short-circuit connections of the ith
         node with the predeccesor and succesor (in clean_orientation)
         removed.
+
     Returns
     -------
     refined_short_edges : list of lists
         Each list gives the indexes in clean_orientation of the 
         (refined) short-circuit edges.
     """
+
     refined_short_edges = []
     clean_order = {node: idx for idx, node in enumerate(clean_orientation)}
     n = len(clean_orientation)
@@ -441,7 +486,7 @@ def refine_edges(short_edges, tol1, clean_orientation, short_connections):  # TO
                 refined_short_edges.append(list(np.asarray(short_edge)[slice_range]))
         else:
             refined_short_edges.append(short_edge)
-        
+
     return refined_short_edges
 
 def connect_edges(short_edges, clean_orientation, short_connections):
