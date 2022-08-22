@@ -84,7 +84,7 @@ More detailed explanations of the above functions and parameters as well as diag
 
 ## Acknowledgements
 
-This project was funded by the London Mathematical Society Undergraduate Research Bursaries 2022 and was supervised by Ximena Fernández (Durham University).
+This project was funded by the London Mathematical Society Undergraduate Research Bursaries (2022) and was supervised by [Ximena Fernández](https://ximenafernandez.github.io/).
 
 ### References
 <a id="1">[1]</a> 
