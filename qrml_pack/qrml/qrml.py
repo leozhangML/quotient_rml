@@ -19,7 +19,21 @@ warnings.filterwarnings("ignore")
 # dimension estimation
 def local_pca_elbow(pointcloud, S1):
     """
-    Applies PCA to local pointclouds and recover local dimension finding elbows in the function of recovered variances
+    Applies PCA to local pointclouds and recovers its
+    local dimension by finding the elbow point in the 
+    function of recovered variances.
+
+    Parameters
+    ----------
+    pointcloud : (n_samples, n_features) np.array
+        Subarray of pointcloud data.
+    S1 : positive float
+        Parameter for KneeLocator.
+
+    Returns
+    -------
+    dim : int
+        Estimated dimension of local pointcloud.
     """
 
     if len(pointcloud) == 1:
@@ -39,6 +53,8 @@ def local_pca_elbow(pointcloud, S1):
 def alpha_shape(points, alpha, only_outer=True):
     """
     Compute the alpha shape (concave hull) of a set of points.
+    https://stackoverflow.com/questions/23073170/calculate-bounding-polygon-of-alpha-shape-from-the-delaunay-triangulation
+
     :param points: np.array of shape (n,2) points.
     :param alpha: alpha value.
     :param only_outer: boolean value to specify if we keep only the outer border
@@ -46,8 +62,6 @@ def alpha_shape(points, alpha, only_outer=True):
     :return: set of (i,j) pairs representing edges of the alpha-shape. (i,j) are
     the indices in the points array.
     """
-
-    #https://stackoverflow.com/questions/23073170/calculate-bounding-polygon-of-alpha-shape-from-the-delaunay-triangulation
 
     assert points.shape[0] > 3, "Need at least four points"
 
@@ -88,6 +102,25 @@ def alpha_shape(points, alpha, only_outer=True):
     return edges
 
 def find_tear_points(S, a):
+    """
+    Computes the set of points ("tear points") in S.pointcloud 
+    where the ratio of mean length of the projected edges 
+    (to a given point) and mean length of the original edges 
+    is greater than a. 
+
+    Parameters
+    ----------
+    S : Simplex object
+        Needs to have coords computed.
+    a : positive float
+
+    Returns
+    -------
+    tear_points : list
+        List of the indexes of points in S.pointcloud
+        which are classed as "tear points".
+    """
+
     dist_matrix = dijkstra(S.edge_matrix)
     tear_points = []
 
@@ -100,20 +133,29 @@ def find_tear_points(S, a):
 
     return tear_points
 
-def find_orientation(edges, start_point=None, **kwargs):
+def find_orientation(edges, **kwargs):
     """
-    Assumes edges is a 1-cycle
-    edges : set of edges from alpha shape
+    From the output of alpha_shape, we order the edges
+    to give an orientation - assumes edges gives a 1-cycle.
 
-    orientation : (num_edges, 2) np.array of ordered edges
-
-    TODO : turn orientation to 1-D array
+    Parameters
+    ----------
+    edges : (num_edges,) set 
+        Set of (i,j) pairs representing edges of the 
+        alpha-shape. (i,j) are the indices in the points array.
+    
+    Returns
+    -------
+    orientation : (num_edges, 2) np.array 
+        The ith row gives the indexes (j, k) of the connected 
+        points of the ith edge in the orientated boundary.
     """
+
     orientation = []
     n_edges = np.asarray(list(edges))
-    point = n_edges[0, 0] if start_point is None else start_point
+    point = n_edges[0, 0]
 
-    for i in range(len(n_edges)):
+    for _ in range(len(n_edges)):
         edge_idx = np.where(n_edges[:, 0]==point)[0][0]  # next point from point
         point = n_edges[edge_idx][1]
         orientation.append(n_edges[edge_idx])
@@ -122,8 +164,36 @@ def find_orientation(edges, start_point=None, **kwargs):
 
 def add_boundary(S, orientation, ax, three_d=False, alpha0=0.5, cmap='cool', loop=True, **kwargs):
     """
-    The orientation goes from blue to pink (if cmap=='cool')
+    Applies the orientated edge given by orientation onto ax
+    with the colouring given by cmap. The orientation goes 
+    from blue to pink if cmap=='cool'.
+
+    Adapted from https://matplotlib.org/stable/gallery/lines_bars_and_markers/multicolored_line.html.
+
+    Parameters
+    ----------
+    S : Simplex object
+        Needs to have coords computed.
+    orientation : (num_edges, 2) np.array 
+        The ith row gives the indexes (j, k) of the connected 
+        points of the ith edge in the orientated edge.
+    ax : matplotlib.axes.Axes object
+        Axes to plot the orientated edge on.
+    three_d : bool
+        True if the axes we use is for a 3D plot.
+    alpha0 : float
+        Value for alpha for plotting.
+    cmap : colourmap
+        Colourmap to use to plot the edge.
+    loop : bool
+        True if the edge to be plotted is a 1-cycle.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes object
+        Axes with the plotted orientated edge applied.
     """
+
     if three_d:
         if loop:
             xy = S.pointcloud[np.concatenate([orientation[:, 0], np.array([orientation[0, 0]])])]
@@ -718,17 +788,17 @@ class Simplex:
         ----------
         pointcloud : (n_samples, n_features) np.array
             The pointcloud data from which we build our simplex. 
-        Simplex : gd.SimplexTree
-            Stores the simplex structure with GUDHI.
         edges : (n_samples,) list containing 1-D np.array
             The ith entry contains the indexes of the 'safe' points which 
             connect to the ith point.
-        edge_matrix : (n_samples, n_samples) np.array // csr_matrix
-            Gives the structure of our edge connection.
+        edge_matrix : (n_samples, n_samples) np.array / csr_matrix
+            Gives the structure of our edge connection. The (i, j)
+            entry gives the length of the edge between the ith and jth
+            points.
         dim : int
-            The dimension of our simplex.
+            The estimated dimension of our pointcloud.
         coords : (n_samples, self.dim) np.array
-            Riemannian normal coordinates from the 'naive' algorithm.
+            Projected coordinates from the "naive" algorithm.
         """
 
         self.pointcloud = None
@@ -786,7 +856,7 @@ class Simplex:
     def find_safe_edges(self, idx, ind, dist, threshold_var, edge_sen):
         """
         Computes the list of safe edges of points from visible edges 
-        which connect to the 'idx' point and stores in our SimplexTree.
+        which connect to the 'idx' point to self.edge_matrix.
 
         Parameters
         ----------
@@ -800,11 +870,8 @@ class Simplex:
             The threshold to estimate the local intrinsic dimension by PCA.
         edge_sen : positive float
             The sensitivity with which we choose safe edges.
-        Returns
-        -------
-        ind : 1-D np.array
-            Indexes of safe points connected to the 'idx' point.
         """
+
         point = self.pointcloud[idx]
         edges = self.pointcloud[ind] - point  # ascending by length
         threshold_edge = edge_sen * np.mean(dist)
@@ -822,15 +889,18 @@ class Simplex:
             if dim1 > dim0 and dist[j-1]-dist[j-2] > threshold_edge:
                 self.edge_matrix[idx, ind[:j-1]] = dist[:j-1]
                 self.edge_matrix[ind[:j-1], idx] = dist[:j-1]
-            
+
             dim0 = dim1
 
         self.edge_matrix[idx, ind] = dist
         self.edge_matrix[ind, idx] = dist
 
-    def build_simplex(self, pointcloud, max_components=5, S1=0.2, k=10, threshold_var=0.08, edge_sen=1, **kwargs):
+    def build_simplex(self, pointcloud, S1=0.2, k=10, threshold_var=0.08, edge_sen=1, **kwargs):
         """
-        Computes the edges of our simplex and the GUDHI simplex tree.
+        Computes the 1-skeleton on pointcloud which approximates
+        the underlying manifold structure of our data to self.edges
+        and self.edge_matrix. Also computes the estimated dimension 
+        of our data to self.dim.
 
         Parameters
         ----------
