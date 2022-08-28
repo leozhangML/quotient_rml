@@ -337,7 +337,7 @@ def intersection(S, clean_orientation, connection_tol):
         (in terms of S.coords).
     connection_tol : non-negative int
         Specifies how far connected points must be to count 
-        as a connection.
+        as a short-circuit connection.
 
     Returns:
     --------
@@ -744,7 +744,47 @@ def convert_orientation(orientation):
 # quotient diagnostics
 def find_short_and_refined(S, alpha, tol, quotient_tol, tol1, connection_tol=5):
     """
-    
+    Computes the intial short-edges, non-short-edges
+    and the refined short-edges.
+
+    Parameters
+    ----------
+    alpha : float
+        Value for alpha shapes.
+    tol : int >= 2
+        Length of loops to close up with clean_boundary.
+    quotient_tol : int
+        Number of points between short-circuit points
+        required (at least) to define a non-short-circuit 
+        between them.
+    tol1 : int
+        Minimum distance required between splitting points 
+        when refining edges.
+    connection_tol : int
+        Specifies how far connected points must be to count 
+        as a short-circuit connection.
+
+    Returns
+    -------
+    short_edges : list of lists
+        Each list gives the indexes in clean_orientation of the 
+        short-circuit edges.
+    refined_short_edges : list of lists
+        Each list gives the indexes in clean_orientation of the 
+        (refined) short-circuit edges.
+    non_short_edges : list of lists
+        Each list gives the indexes in clean_orientation of the 
+        non-connected edges.
+    orientation : (num_edges, 2) np.array 
+        The ith row gives the indexes (j, k) of the connected 
+        points of the ith edge in the orientated boundary.
+    clean_orientation : (num_edges,) np.array 
+        The array lists the indexes of boundary points in order
+        (in terms of S.coords).
+    short_connections : list
+        The ith element is the list of short-circuit connections 
+        (in terms of S.coords indexes) of the ith node with 
+        local points - as specified by connection_tol - removed.
     """
 
     # set up boundary with orientation
@@ -776,7 +816,21 @@ def find_short_and_refined(S, alpha, tol, quotient_tol, tol1, connection_tol=5):
 
 def plot_edges(S, c, edge_info, alpha0=0.8):
     """
-    
+    Plots the intial intial short-edges, non-short-edges
+    as well as the refined short-edges and non-short-edges
+    for comparison.
+
+    Short-edges are plotted with solid lines and non-short-edges
+    are plotted with dotted lines. We also show the connection
+    of boundary points to boundary points.
+
+    Parameters
+    ----------
+    c : colour map
+    edge_info : tuple
+        Output of find_short_and_refined.
+    alpha0 : float
+        Alpha value (for line plotting).
     """
 
     if edge_info == -1:
@@ -791,15 +845,17 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
     ax2 = fig.add_subplot(1, 2, 2)
     ax2.title.set_text('refined_short_edges and non_short_edges')
 
-    ax1.scatter(S.coords[:, 0], S.coords[:, 1], c=c)  # for short_edges and non_short_edges
-    ax2.scatter(S.coords[:, 0], S.coords[:, 1], c=c)  # for refined_short_edges and non_short_edges
-
+    # setting plotting colours
     colours = ['blue', 'orange', 'green', 'purple', 'brown', 'pink', 'gray', 'cyan', 'olive', 'cyan']
     orientation_cmaps = ['cool', 'Purples', 'Blues', 'Greens', 'Oranges',
                          'YlOrBr', 'YlOrRd', 'OrRd', 'Greys', 'PuRd', 'RdPu', 
                          'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
- 
-    for idx, short_connection in enumerate(short_connections):  # show how short-circuit nodes are connected to boundary
+
+    ax1.scatter(S.coords[:, 0], S.coords[:, 1], c=c)  # for short_edges and non_short_edges
+    ax2.scatter(S.coords[:, 0], S.coords[:, 1], c=c)  # for refined_short_edges and non_short_edges
+
+    # show how short-circuit nodes are connected to boundary
+    for idx, short_connection in enumerate(short_connections):
         if len(short_connection) != 0:
             ax1.scatter(S.coords[clean_orientation_2d[:, 0][idx], 0], S.coords[clean_orientation_2d[:, 0][idx], 1], c='r', marker='o')
             ax2.scatter(S.coords[clean_orientation_2d[:, 0][idx], 0], S.coords[clean_orientation_2d[:, 0][idx], 1], c='r', marker='o')
@@ -807,7 +863,8 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
                 ax1.plot([S.coords[clean_orientation_2d[:, 0][idx], 0], S.coords[j][0]], [S.coords[clean_orientation_2d[:, 0][idx], 1], S.coords[j][1]], c='black', alpha=0.5)
                 ax2.plot([S.coords[clean_orientation_2d[:, 0][idx], 0], S.coords[j][0]], [S.coords[clean_orientation_2d[:, 0][idx], 1], S.coords[j][1]], c='black', alpha=0.5)
 
-    if non_short_edges != None:  # handles non_short_edges for ax1 and ax2
+    # handles non_short_edges for ax1 and ax2
+    if non_short_edges != None:
         if len(non_short_edges) == 1 and short_edges == None:  # if single non-short-circuit 1-cycle 
             ax1 = add_boundary(S, clean_orientation_2d, ax1, three_d=False, alpha0=alpha0)
             ax2 = add_boundary(S, clean_orientation_2d, ax2, three_d=False, alpha0=alpha0)
@@ -819,7 +876,8 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
                     ax1.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color=colours[idx], linewidth=10, alpha=alpha0, linestyle='dotted')
                     ax2.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color=colours[idx], linewidth=10, alpha=alpha0, linestyle='dotted')
 
-        if short_edges != None:  # handles sort_edges for ax1
+        # handles sort_edges for ax1
+        if short_edges != None:
             if len(short_edges) == 1:
                 loop = True
             else:
@@ -827,8 +885,9 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
             for idx, short_edge in enumerate(short_edges):
                 short_edge_clean_orientation = clean_orientation_2d[short_edge]
                 ax1 = add_boundary(S, short_edge_clean_orientation, ax1, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[idx], loop=loop)
-        
-        if refined_short_edges != None:  # handles refined_short_edges for ax2
+
+        # handles refined_short_edges for ax2
+        if refined_short_edges != None:
             if len(refined_short_edges) == 1:
                 loop = True
             else:
@@ -837,7 +896,8 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
                 refined_short_edge_clean_orientation = clean_orientation_2d[refined_short_edge]
                 ax2 = add_boundary(S, refined_short_edge_clean_orientation, ax2, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[idx], loop=loop)
 
-        if non_short_edges == None and short_edges == None:  # if all points are associated 
+        # if all points are associated 
+        if non_short_edges == None and short_edges == None:
             for i, j in clean_orientation_2d:
                 ax1.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
                 ax2.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
@@ -1226,7 +1286,7 @@ class Simplex:
             when refining edges.
         connection_tol : int
             Specifies how far connected points must be to count 
-            as a connection.
+            as a short-circuit connection.
 
         Returns
         -------
@@ -1320,7 +1380,7 @@ class Simplex:
             when refining edges.
         connection_tol : int
             Specifies how far connected points must be to count 
-            as a connection.
+            as a short-circuit connection.
         alpha0 : float
             Alpha value (for line plotting).
         show_pointcloud : bool
