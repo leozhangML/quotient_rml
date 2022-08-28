@@ -1,18 +1,18 @@
+import numpy                as np
 from sklearn.neighbors      import KDTree
+from sklearn.decomposition  import PCA
 from scipy.sparse           import csr_matrix
 from scipy.sparse.csgraph   import dijkstra
-from sklearn.decomposition  import PCA
-import numpy                as np
-import warnings
-import gurobipy             as gp
-from gurobipy               import GRB
-import matplotlib.pyplot    as plt
-from kneed                  import KneeLocator
 from scipy.spatial          import distance_matrix
 from scipy.stats            import mode
 from scipy.spatial          import Delaunay
+import matplotlib.pyplot    as plt
 from matplotlib.collections import LineCollection
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
+import gurobipy             as gp
+from gurobipy               import GRB
+from kneed                  import KneeLocator
+import warnings
 
 warnings.filterwarnings("ignore")
 
@@ -322,8 +322,12 @@ def clean_boundary(S, tol, orientation, boundary_edges):
 
 def intersection(S, clean_orientation, connection_tol):
     """
-    For points in orientation
+    For each point in clean_orientation, we compute the set of 
+    points in clean_orientation which connect to it; connection_tol
+    specifies how far these points must be to count as a connection.
 
+    If this set is non-empty, we record the index (in clean_orientation) 
+    of such a point.
 
     Parameters:
     -----------
@@ -332,6 +336,8 @@ def intersection(S, clean_orientation, connection_tol):
         The array lists the indexes of boundary points in order
         (in terms of S.coords).
     connection_tol : non-negative int
+        Specifies how far connected points must be to count 
+        as a connection.
 
     Returns:
     --------
@@ -363,6 +369,12 @@ def intersection(S, clean_orientation, connection_tol):
 def identify_edges(n, short_idxs, quotient_tol):
     """
     Identify short-circuit and non-short-circuit edges in clean_orientation.
+
+    Non-short-circuit edges are collections of contiguous points which are
+    classed as not glued to any other edge in the boundary. 
+
+    Short-circuit edges (or short-edges) are the same but are classed as glued 
+    to some other (short-circuit) edge.
 
     Parameters
     ----------
@@ -419,10 +431,10 @@ def identify_edges(n, short_idxs, quotient_tol):
     
     return short_edges, non_short_edges
 
-def refine_edges(short_edges, tol1, clean_orientation, short_connections):  # TODO : improve refinement algo
+def refine_edges(short_edges, tol1, clean_orientation, short_connections):
     """
-    Refines the short-edges to take care of self intersections in 
-    a short-edge - i.e. RP2 and torus.
+    Refines the short-edges (split into multiple short-edges) to take 
+    care of self intersections in a short-edge - i.e. RP2 and torus.
 
     Parameters
     ----------
@@ -547,7 +559,8 @@ def connect_edges(short_edges, clean_orientation, short_connections):
 
 def find_connection_order(node, compared_short_edge, short_connections, clean_order):
     """
-    Should handle the looping of orientation.
+    Computes the maximum and minimum index (in the compared_short_edge) of the 
+    points which connect to node.
 
     Parameters
     ----------
@@ -645,8 +658,9 @@ def gluing_orientation(glued_edges, short_edges, clean_orientation, short_connec
 
 def assemble_quotient(glued_edges, same_orientation):
     """
-    Assigns how to colour and plot our glued edges (e.g. more than 
-    three edges are glued together). Checks for compatible gluing.
+    Assigns how to colour and plot our glued edges (such that we 
+    can handle the case when more than three edges are glued 
+    together etc.). Checks for compatible gluing.
 
     Parameters
     ----------
@@ -715,8 +729,16 @@ def assemble_quotient(glued_edges, same_orientation):
 
 def convert_orientation(orientation):
     """
-    Takes a 1-D orientation (full 1-cycle) to 2-D for plotting
+    Takes a 1-D orientation (full 1-cycle) such 
+    clean_orientation to 2-D np.array (like orientation) for plotting.
+
+    Parameters
+    -------
+    orientation : (num_edges, 2) np.array 
+        The ith row gives the indexes (j, k) of the connected 
+        points of the ith edge in the orientated boundary.
     """
+
     return np.column_stack([orientation[:], np.concatenate([orientation[1:], np.array([orientation[0]])])])
 
 # quotient diagnostics
@@ -821,6 +843,7 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
                 ax2.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
     plt.show()
 
+
 class Simplex:
     """
     Represents the simplex skeleton of 
@@ -844,6 +867,9 @@ class Simplex:
             The estimated dimension of our pointcloud.
         coords : (n_samples, self.dim) np.array
             Projected coordinates from the "naive" algorithm.
+        p_idx : int
+            Index of the point in self.pointcloud that we take as the 
+            base point in our projection.
         """
 
         self.pointcloud = None
@@ -851,7 +877,8 @@ class Simplex:
         self.edge_matrix = None
         self.dim = None
         self.coords = None
-    
+        self.p_idx = None
+
     def find_visible_edge(self, idx, ind, dist):
         """
         Computes a list of the indexes of points visible from 
@@ -866,7 +893,7 @@ class Simplex:
             Indexes of points connected to the idx point by KNN.
         dist : (k,) np.array
             Array of edge lengths from KNN.
-        
+
         Returns
         -------
         visible_ind : (n_visible_edges,) np.array
@@ -874,6 +901,7 @@ class Simplex:
         visible_dist : (n_visible_edges,) np.array
             Lengths of visible edges.
         """
+
         point = self.pointcloud[idx]
         # List of indexes for visible points from the 'idx' point
         # where the indexes are for 'ind' (not self.pointcloud)
@@ -892,12 +920,12 @@ class Simplex:
             if visible == True:
                 visible_points_idx.append(y_count)
             visible = True
-        
+
         visible_dist = dist[visible_points_idx]  
         visible_ind = ind[visible_points_idx] 
 
         return visible_ind, visible_dist 
-    
+
     def find_safe_edges(self, idx, ind, dist, threshold_var, edge_sen):
         """
         Computes the list of safe edges of points from visible edges 
@@ -920,7 +948,7 @@ class Simplex:
         point = self.pointcloud[idx]
         edges = self.pointcloud[ind] - point  # ascending by length
         threshold_edge = edge_sen * np.mean(dist)
-        
+
         for j in range(2, len(edges)+1):  # need len != 1 
             pca = PCA()
             pca.fit_transform(edges[:j])
@@ -958,13 +986,15 @@ class Simplex:
         edge_sen : positive float
             The sensitivity with which we choose safe edges.
         """
+
         n = len(pointcloud)
         self.pointcloud = pointcloud
         self.edge_matrix = np.zeros([n, n])
 
-        kd_tree = KDTree(pointcloud, leaf_size=2)  # ALREADY ORDERED ASCENDING
+        kd_tree = KDTree(pointcloud, leaf_size=2)
         dists, inds = kd_tree.query(pointcloud, k=k+1)
-        dists = dists[:, 1:]  # removes points being compared to itself with KNN
+        # removes points being compared to itself with KNN
+        dists = dists[:, 1:]
         inds = inds[:, 1:]
 
         visible_edges = [self.find_visible_edge(i, inds[i], dists[i]) for i in range(n)]
@@ -978,7 +1008,15 @@ class Simplex:
     def normal_coords(self, k0=0, two_d=False, **kwargs):
         """
         Computes the Riemannian normal coordinates from 
-        the 'naive' algorithm.
+        the 'naive' algorithm, saved to self.coords.
+
+        Parameters
+        ----------
+        k0 : int
+            Maximum number of extra (beyond self.dim) neighbouring 
+            points to be used in the projection of each point. 
+        two_d : bool
+            When True, we set self.dim=2 to compute a 2-D projection.
         """
 
         if self.edges == None:
@@ -1025,8 +1063,7 @@ class Simplex:
                 computed_points_b = [i for i in self.edges[pred] if computed_points[i]]
 
                 # we add the indexes of computed points connected to the c_i which are not already in the list and are not b
-
-                if len(computed_points_b) < self.dim+k0:  # k0 is extra parameter
+                if len(computed_points_b) < self.dim+k0:
                     extra_computed_points = [j for i in computed_points_b for j in self.edges[i] if computed_points[j] and j not in computed_points_b and j!= pred]
                     extra_computed_points_idx = np.argsort(dist_matrix[idx, extra_computed_points])
                     computed_points_b += list(np.asarray(extra_computed_points)[extra_computed_points_idx[:k0+self.dim-len(computed_points_b)]])
@@ -1046,7 +1083,7 @@ class Simplex:
 
                 A = self.coords[computed_points_b] - b_prime
                 A /= np.linalg.norm(A, axis=1).reshape(k, 1) * alpha  
-                
+
                 m = gp.Model()
                 m.setParam('OutputFlag', 0)
                 m.setParam(GRB.Param.NonConvex, 2)
@@ -1057,13 +1094,39 @@ class Simplex:
                 m.setObjective(obj, GRB.MINIMIZE)
                 m.addConstr(x@x == alpha**2, name="c")
                 m.optimize()
+                
+                # records the projected coordinates
                 self.coords[idx] = x.X + b_prime                    
-                        
                 computed_points[idx] = True
 
     def show_boundary(self, alpha, tol, c=None, show_tear_points=False, a=2.5, show_connections=False, show_pointcloud=False, connection_tol=5, **kwargs):
         """
-        TODO : add options for quotient boundary
+        For 2-D projections, we plot the projection with options with
+        options to show the "cleaned" orientation, "tear" points 
+        and how boundary points are connected to other boundary points.
+
+        We have the option to plot similar data on the pointcloud (if 3-D).
+
+        Parameters
+        ----------
+        alpha : float
+            Value for alpha shapes.
+        tol : int >= 2
+            Length of loops to close up with clean_boundary.
+        c : colour map
+        show_tear_points : bool
+            When True, we plot the "tear" points with red crosses.
+        a : float
+            Value for find_tear_points.
+        show_connections : bool
+            When True, we show how boundary points are connected
+            to other boundary points in the projection.
+        show_pointcloud : bool
+            When True, we plot the pointcloud with the respective 
+            information added.
+        connection_tol : non-negative int
+            Specifies how far connected points must be to count 
+            as a connection.
         """
 
         if np.all(self.coords == None):
@@ -1078,11 +1141,12 @@ class Simplex:
         show_orientation = True
         orientation = find_orientation(boundary_edges, **kwargs)
         orientation = orientation[clean_boundary(self, tol, orientation, boundary_edges)]
-    
-        if len(orientation) < len(boundary_edges):  # should be equal for well-defined boundary
+
+        # checking for well-defined boundary
+        if len(orientation) < len(boundary_edges):
             show_orientation = False
             print('Boundary is not a 1-cycle - try a different alpha value!')
-        
+
         # plot of projections
         fig = plt.figure(figsize=(10, 10))
         fig.suptitle(", ".join([i+"="+str(kwargs[i]) for i in kwargs.keys()]) + f',alpha={alpha}, show_tear_points={show_tear_points}, a={a}, dim={self.dim}, n={len(self.coords)}')
@@ -1110,6 +1174,11 @@ class Simplex:
 
         fig.legend()
 
+        # ensures that the pointcloud is 3-D before plotting
+        if show_pointcloud and self.pointcloud.shape[-1] != 3:
+            print('Pointcloud data is not 3-D - cannot plot!')
+            show_pointcloud = False
+
         # plot of pointcloud in 3-D
         if show_pointcloud:
             fig1 = plt.figure(figsize=(10, 10))
@@ -1118,12 +1187,16 @@ class Simplex:
             ax1.scatter3D(self.pointcloud[:, 0], self.pointcloud[:, 1], self.pointcloud[:, 2], c=c, alpha=0.5)
             ax1.scatter3D(self.pointcloud[self.p_idx, 0], self.pointcloud[self.p_idx, 1], self.pointcloud[self.p_idx, 2], c='g', marker='>', s=100)
 
+            # handles plotting tear points on the pointcloud
             if show_tear_points:
                 ax1.scatter3D(self.pointcloud[tear_points, 0], self.pointcloud[tear_points, 1], self.pointcloud[tear_points, 2], c='r', marker='x', s=50, label=f'boundary with a={a}')
 
+            # handles plotting the boundary with orientation on the pointcloud
             if show_orientation:
                 boundary_array = np.asarray(list(boundary_edges)).reshape(-1)
                 ax1 = add_boundary(self, orientation, ax1, three_d=True)
+
+                # plots the edges for neighbouring points (in the 1-skeleton) of the pointcloud
                 for i in range(len(self.pointcloud)):
                     if i in boundary_array:
                         for k in self.edges[i]:
@@ -1135,9 +1208,53 @@ class Simplex:
 
     def compute_quotient_edges(self, alpha, tol, quotient_tol, tol1, connection_tol=5):
         """
-        TODO : try to add the simplex structure of the boundary to 
-            allow for more connectivity as the algo finds the least 
-            connected boundary possible
+        Computes the quotient identifications of the boundary
+        of a 2-D projection.
+
+        Parameters
+        ----------
+        alpha : float
+            Value for alpha shapes.
+        tol : int >= 2
+            Length of loops to close up with clean_boundary.
+        quotient_tol : int
+            Number of points between short-circuit points
+            required (at least) to define a non-short-circuit 
+            between them.
+        tol1 : int
+            Minimum distance required between splitting points 
+            when refining edges.
+        connection_tol : int
+            Specifies how far connected points must be to count 
+            as a connection.
+
+        Returns
+        -------
+        short_edges : list of lists
+            Each list gives the indexes in clean_orientation of the 
+            short-circuit edges.
+        non_short_edges : list of lists
+            Each list gives the indexes in clean_orientation of the 
+            non-connected edges.
+        glued_edges : list of lists
+            Consist of elements [i, j] where i, j are indexes 
+            in short_edges representing "glued" edges.
+        orientation : (num_edges, 2) np.array 
+            The ith row gives the indexes (j, k) of the connected 
+            points of the ith edge in the orientated boundary.
+        clean_orientation : (num_edges,) np.array 
+            The array lists the indexes of boundary points in order
+            (in terms of S.coords).
+        same_orientation : bool list
+            ith element is True if ith pair in glued_edges have the same
+            orientation. False, otherwise.
+        orientation_dict : dict
+            Keys are indexes for short_edges with value as True if the indexed
+            edge should be plotted with the same orientation as induced from 
+            clean_orientation. False, otherwise.
+        colour_dict : dict
+            Keys are indexes for short_edges with int values. Elements with the
+            same values are plotted with the same colour - i.e. glued together.
         """
 
         if np.all(self.coords==None):
@@ -1183,16 +1300,52 @@ class Simplex:
 
     def plot_quotient(self, c, alpha, tol, quotient_tol, tol1, connection_tol=5, alpha0=0.8, show_pointcloud=False):
         """
-        
+        Plots the quotient identifications of the boundary
+        of a 2-D projection, with the option to show the
+        correspondence on the pointcloud data (if 3-D).
+
+        Parameters
+        ----------
+        c : colour map
+        alpha : float
+            Value for alpha shapes.
+        tol : int >= 2
+            Length of loops to close up with clean_boundary.
+        quotient_tol : int
+            Number of points between short-circuit points
+            required (at least) to define a non-short-circuit 
+            between them.
+        tol1 : int
+            Minimum distance required between splitting points 
+            when refining edges.
+        connection_tol : int
+            Specifies how far connected points must be to count 
+            as a connection.
+        alpha0 : float
+            Alpha value (for line plotting).
+        show_pointcloud : bool
+            When True, we plot the pointcloud with the respective 
+            information added.
+
+        Returns
+        -------
+        quotient_info : tuple
+            Output of compute_quotient_edges.
         """
 
         if np.all(self.coords == None):
             print('No projection found! Try normal_coords.')
             return None
-        
+
+        # computes the quotient
         quotient_info = self.compute_quotient_edges(alpha, tol, quotient_tol, tol1, connection_tol=connection_tol)
         if quotient_info == -1:
             return None
+
+        # ensures that the pointcloud is 3-D before plotting
+        if show_pointcloud and self.pointcloud.shape[-1] != 3:
+            print('Pointcloud data is not 3-D - cannot plot!')
+            show_pointcloud = False
 
         if show_pointcloud:
             fig = plt.figure(figsize=(20, 10))
@@ -1201,12 +1354,12 @@ class Simplex:
             ax1.scatter(self.coords[:, 0], self.coords[:, 1], c=c)
             ax2.scatter3D(self.pointcloud[:, 0], self.pointcloud[:, 1], self.pointcloud[:, 2], c=c)
             ax2.scatter3D(self.pointcloud[self.p_idx, 0], self.pointcloud[self.p_idx, 1], self.pointcloud[self.p_idx, 2], c='g', marker='>', s=100)
-
         else:
             fig = plt.figure(figsize=(10, 10))
             ax1 = fig.add_subplot(1, 1, 1)
             ax1.scatter(self.coords[:, 0], self.coords[:, 1], c=c)
 
+        # setting up fig and plotting colours
         fig.suptitle(f'alpha={alpha}, tol={tol}, quotient_tol={quotient_tol}, tol1={tol1},  n={len(self.coords)}')
         orientation_cmaps = ['cool', 'Purples', 'Blues', 'Greens', 'Oranges',
                         'YlOrBr', 'YlOrRd', 'OrRd', 'Greys', 'PuRd', 'RdPu', 
@@ -1216,22 +1369,24 @@ class Simplex:
         short_edges, non_short_edges, glued_edges, orientation, clean_orientation, same_orientation, orientation_dict, colour_dict = quotient_info
         clean_orientation_2d = convert_orientation(clean_orientation)
 
+        # handles non-short-edges
         if non_short_edges != None:
             if len(non_short_edges) == 1 and short_edges == None:  # if single non-short-circuit 1-cycle 
                 ax1 = add_boundary(self, clean_orientation_2d, ax1, three_d=False, alpha0=alpha0)
                 if show_pointcloud:
                     ax2 = add_boundary(self, clean_orientation_2d, ax2, three_d=True, alpha0=alpha0)
             else:
-                for idx, non_short_edge in enumerate(non_short_edges):  # handles non-short-edges
+                for idx, non_short_edge in enumerate(non_short_edges):
                     edge = clean_orientation_2d[non_short_edge]
                     l = len(edge)
                     for i, j in edge:
                         ax1.plot([self.coords[i][0], self.coords[j][0]],[self.coords[i][1], self.coords[j][1]], color=colours[idx], linewidth=10, alpha=alpha0, linestyle='dotted')
                         if show_pointcloud:
                             ax2.plot3D([self.pointcloud[i][0], self.pointcloud[j][0]],[self.pointcloud[i][1], self.pointcloud[j][1]], [self.pointcloud[i][2], self.pointcloud[j][2]], color=colours[idx], linewidth=10, alpha=alpha0, linestyle='dotted')
-                            
+
+        # handles short-edges
         if short_edges != None:
-            for idx, short_edge in enumerate(short_edges):  # handles short-edges
+            for idx, short_edge in enumerate(short_edges):
                 if orientation_dict[idx]:
                     short_edge_clean_orientation = clean_orientation_2d[short_edge]
                 else:
@@ -1241,7 +1396,8 @@ class Simplex:
                 if show_pointcloud:
                     ax2 = add_boundary(self, short_edge_clean_orientation, ax2, three_d=True, alpha0=alpha0, cmap=orientation_cmaps[colour_dict[idx]], loop=False)
 
-        if non_short_edges == None and short_edges == None:  # handles if all points are associated 
+         # handles if all points are associated 
+        if non_short_edges == None and short_edges == None:
             for i, j in clean_orientation_2d:
                 ax1.plot([self.coords[i][0], self.coords[j][0]],[self.coords[i][1], self.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
                 if show_pointcloud:
