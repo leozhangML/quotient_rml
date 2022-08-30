@@ -787,6 +787,13 @@ def find_short_and_refined(S, alpha, tol, quotient_tol, tol1, connection_tol=5):
         local points - as specified by connection_tol - removed.
     """
 
+    if np.all(S.coords==None):
+        print('No projection found! Try normal_coords.')
+        return None
+    elif S.dim != 2:
+        print("Dimension of projection is not two - cannot compute quotient!")
+        return -1
+
     # set up boundary with orientation
     edges = alpha_shape(S.coords, alpha=alpha)
     orientation = find_orientation(edges)
@@ -1266,7 +1273,7 @@ class Simplex:
 
         plt.show()
 
-    def compute_quotient_edges(self, alpha, tol, quotient_tol, tol1, connection_tol=5):
+    def compute_quotient_edges(self, alpha, tol, quotient_tol, tol1, connection_tol=5, **kwargs):
         """
         Computes the quotient identifications of the boundary
         of a 2-D projection.
@@ -1358,7 +1365,7 @@ class Simplex:
 
         return short_edges, non_short_edges, glued_edges, orientation, clean_orientation, same_orientation, orientation_dict, colour_dict
 
-    def plot_quotient(self, c, alpha, tol, quotient_tol, tol1, connection_tol=5, alpha0=0.8, show_pointcloud=False):
+    def plot_quotient(self, c, alpha, tol, quotient_tol, tol1, connection_tol=5, alpha0=0.8, show_pointcloud=False, **kwargs):
         """
         Plots the quotient identifications of the boundary
         of a 2-D projection, with the option to show the
@@ -1410,6 +1417,7 @@ class Simplex:
         if show_pointcloud:
             fig = plt.figure(figsize=(20, 10))
             ax1 = fig.add_subplot(1, 2, 1)
+            plt.axis('equal')
             ax2 = fig.add_subplot(1, 2, 2, projection='3d')
             ax1.scatter(self.coords[:, 0], self.coords[:, 1], c=c)
             ax2.scatter3D(self.pointcloud[:, 0], self.pointcloud[:, 1], self.pointcloud[:, 2], c=c)
@@ -1418,10 +1426,10 @@ class Simplex:
             fig = plt.figure(figsize=(10, 10))
             ax1 = fig.add_subplot(1, 1, 1)
             ax1.scatter(self.coords[:, 0], self.coords[:, 1], c=c)
-        plt.axis('equal')
+            plt.axis('equal')
 
         # setting up fig and plotting colours
-        fig.suptitle(f'alpha={alpha}, tol={tol}, quotient_tol={quotient_tol}, tol1={tol1},  n={len(self.coords)}')
+        fig.suptitle(", ".join([i+"="+str(kwargs[i]) for i in kwargs.keys()]) + f'alpha={alpha}, tol={tol}, quotient_tol={quotient_tol}, tol1={tol1},  n={len(self.coords)}')
         orientation_cmaps = ['cool', 'Purples', 'Blues', 'Greens', 'Oranges',
                         'YlOrBr', 'YlOrRd', 'OrRd', 'Greys', 'PuRd', 'RdPu', 
                         'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
