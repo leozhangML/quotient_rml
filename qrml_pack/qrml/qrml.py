@@ -38,15 +38,15 @@ def local_pca_elbow(pointcloud, S1):
 
     if len(pointcloud) == 1:
         return 1
-    
+
     pca = PCA()
     _ = pca.fit(pointcloud)
     vs = pca.explained_variance_ratio_
-    
+
     kneedle = KneeLocator([i for i in range(len(vs))], vs, S=S1, curve='convex', direction='decreasing')
     elbow = kneedle.elbow
     dim = elbow + 1 if elbow!=None else 0
-    
+
     return dim
 
 # boundary functions
@@ -844,6 +844,7 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
     ax1.title.set_text('short_edges and non_short_edges')
     ax2 = fig.add_subplot(1, 2, 2)
     ax2.title.set_text('refined_short_edges and non_short_edges')
+    plt.axis('equal')
 
     # setting plotting colours
     colours = ['blue', 'orange', 'green', 'purple', 'brown', 'pink', 'gray', 'cyan', 'olive', 'cyan']
@@ -1218,6 +1219,7 @@ class Simplex:
         if show_tear_points:
             tear_points = find_tear_points(self, a)
             ax.scatter(self.coords[tear_points, 0], self.coords[tear_points, 1], c='r', marker='x', s=50, label=f'boundary with a={a}')
+            fig.legend()
 
         # handles plotting the boundary with orientation
         if show_orientation:
@@ -1231,8 +1233,6 @@ class Simplex:
                     plt.scatter(self.coords[orientation[:, 0][idx], 0], self.coords[orientation[:, 0][idx], 1], c='r', marker='o')
                     for j in short_connection:
                         plt.plot([self.coords[orientation[:, 0][idx], 0], self.coords[j][0]], [self.coords[orientation[:, 0][idx], 1], self.coords[j][1]], c='black', alpha=0.5)
-
-        fig.legend()
 
         # ensures that the pointcloud is 3-D before plotting
         if show_pointcloud and self.pointcloud.shape[-1] != 3:
@@ -1250,6 +1250,7 @@ class Simplex:
             # handles plotting tear points on the pointcloud
             if show_tear_points:
                 ax1.scatter3D(self.pointcloud[tear_points, 0], self.pointcloud[tear_points, 1], self.pointcloud[tear_points, 2], c='r', marker='x', s=50, label=f'boundary with a={a}')
+                fig1.legend()
 
             # handles plotting the boundary with orientation on the pointcloud
             if show_orientation:
@@ -1262,7 +1263,6 @@ class Simplex:
                         for k in self.edges[i]:
                             if k in boundary_array:
                                 ax1.plot3D([self.pointcloud[i][0], self.pointcloud[k][0]],[self.pointcloud[i][1], self.pointcloud[k][1]], [self.pointcloud[i][2], self.pointcloud[k][2]], color='b', alpha=0.3)
-            fig1.legend()
 
         plt.show()
 
@@ -1418,6 +1418,7 @@ class Simplex:
             fig = plt.figure(figsize=(10, 10))
             ax1 = fig.add_subplot(1, 1, 1)
             ax1.scatter(self.coords[:, 0], self.coords[:, 1], c=c)
+        plt.axis('equal')
 
         # setting up fig and plotting colours
         fig.suptitle(f'alpha={alpha}, tol={tol}, quotient_tol={quotient_tol}, tol1={tol1},  n={len(self.coords)}')
