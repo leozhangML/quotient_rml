@@ -286,37 +286,43 @@ def clean_boundary(S, tol, orientation, boundary_edges):
     included = np.full(n, True)
     order = {node: count for count, node in enumerate(orientation)}  # (node, place in orientation)
 
-    # as the boundary is dynamically changing, we loop until no more changes 
+    # as the boundary is dynamically changing, we loop until no more changes are possible
     keep_looping = True
     while keep_looping:
         keep_looping = False
 
-        for node_idx in range(n):  # loop from the start of our orientation until the end
+        # loop from the start of our orientation until the end
+        for node_idx in range(n):
             if included[node_idx] == False:
                 continue
             else:
                 visible_nodes = []
-                for i in range(1, n):  # finds the visible nodes from node_idx
+
+                # finds the visible nodes from node_idx
+                for i in range(1, n):
                     if included[(node_idx+i)%n] == False:
                         continue
                     else:
                         visible_nodes.append(orientation[(node_idx+i)%n])
                         if len(visible_nodes) == tol:
                             break
-                    test_nodes = visible_nodes.copy()
-                    test_nodes.pop(0)  # we ignore the first node connected to node_idx
-                    test_nodes = set(test_nodes)
 
-                    local_edges = set(S.edges[orientation[node_idx]])
-                    intersection = test_nodes.intersection(local_edges)
-                    if len(intersection) != 0:
-                        intersection = list(intersection)
-                        furthest_idx = np.argmax([(order[i]-node_idx)%n for i in intersection])
-                        furthest_point = intersection[furthest_idx]  # a_i
-                        # visible nodes is already ordered by orientation from node_idx
-                        deleted_points = [order[i] for i in visible_nodes[:visible_nodes.index(furthest_point)]]
-                        included[deleted_points] = False
-                        keep_looping = True
+                # handles connections
+                test_nodes = visible_nodes.copy()
+                test_nodes.pop(0)  # we ignore the first node connected to node_idx
+                test_nodes = set(test_nodes)
+
+                local_edges = set(S.edges[orientation[node_idx]])
+                intersection = test_nodes.intersection(local_edges)
+
+                if len(intersection) != 0:
+                    intersection = list(intersection)
+                    furthest_idx = np.argmax([(order[i]-node_idx)%n for i in intersection])
+                    furthest_point = intersection[furthest_idx]  # a_i
+                    # visible nodes is already ordered by orientation from node_idx
+                    deleted_points = [order[i] for i in visible_nodes[:visible_nodes.index(furthest_point)]]
+                    included[deleted_points] = False
+                    keep_looping = True
 
     return included
 
@@ -914,8 +920,8 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
 
 class Simplex:
     """
-    Represents the simplex skeleton of 
-    our pointcloud.
+    Class for computing projections and
+    quotients in qrml.
     """
 
     def __init__(self):
@@ -1208,10 +1214,9 @@ class Simplex:
         boundary_edges = alpha_shape(self.coords, alpha)
         show_orientation = True
         orientation = find_orientation(boundary_edges, **kwargs)
-        orientation = orientation[clean_boundary(self, tol, orientation, boundary_edges)]
+        included = clean_boundary(self, tol, orientation, boundary_edges)
 
-        # checking for well-defined boundary
-        if len(orientation) < len(boundary_edges):
+        if np.sum(included) == 2 or np.all(included==-1):  # if all points are identified or orientation is not 1-cycle
             show_orientation = False
             print('Boundary is not a 1-cycle - try a different alpha value!')
 
@@ -1230,6 +1235,7 @@ class Simplex:
 
         # handles plotting the boundary with orientation
         if show_orientation:
+            orientation = orientation[included]
             ax = add_boundary(self, orientation, ax)
 
         # handles showing the connections of boundary points in the projection
