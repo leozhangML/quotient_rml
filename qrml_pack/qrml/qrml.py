@@ -404,6 +404,7 @@ def identify_edges(n, short_idxs, quotient_tol):
 
     short_edges = []
     non_short_edges = []
+
     base = short_idxs[0]
     current_idx = short_idxs[0]
     short = False
@@ -548,6 +549,8 @@ def connect_edges(short_edges, clean_orientation, short_connections):
         glued_edges.add(frozenset([idx, connected_edge_idx]))  # associates the two together in terms of index in short_edges
 
     glued_edges = [list(i) for i in glued_edges]
+
+    """
     refined_glued_edges = []
 
     for pair in glued_edges:  # ignores single gluings if some other non-single relevant gluing exists
@@ -560,6 +563,7 @@ def connect_edges(short_edges, clean_orientation, short_connections):
             refined_glued_edges.append(pair)
 
     glued_edges = refined_glued_edges
+    """
 
     return glued_edges
 
@@ -581,11 +585,12 @@ def find_connection_order(node, compared_short_edge, short_connections, clean_or
     clean_order : dict
         Keys are elements of clean_orientation with value equal to their index
         in the array.
-    
+
     Returns
     -------
     None/(maximum, minimum)
     """
+
     set_compared_short_edge = set(compared_short_edge)
     compared_connections = set(short_connections[clean_order[node]]).intersection(set_compared_short_edge)
     if len(compared_connections) == 0:
@@ -626,7 +631,7 @@ def gluing_orientation(glued_edges, short_edges, clean_orientation, short_connec
     clean_order = {node: idx for idx, node in enumerate(clean_orientation)}
     for idxs in glued_edges:
         if len(idxs) == 1:
-            print('Short-circuit edges not properly seperated! Try another value of tol1')
+            print('Short-circuit edges not properly seperated! Try new parameters!')  # TODO : try going to second most connected edge? Should give correct orientation for torus?
             return -1
         else:
             idx1, idx2 = idxs
@@ -877,9 +882,25 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
                 ax1.plot([S.coords[clean_orientation_2d[:, 0][idx], 0], S.coords[j][0]], [S.coords[clean_orientation_2d[:, 0][idx], 1], S.coords[j][1]], c='black', alpha=0.5)
                 ax2.plot([S.coords[clean_orientation_2d[:, 0][idx], 0], S.coords[j][0]], [S.coords[clean_orientation_2d[:, 0][idx], 1], S.coords[j][1]], c='black', alpha=0.5)
 
+    # handles looping of boundary orientation if no short-edges exist 
+    no_short_edges = False
+    if short_edges == None:
+        no_short_edges = True
+    else:
+        if len(short_edges) == 0:
+            no_short_edges = True
+
+    # handles looping of boundary orientation if no non-short-edges exist 
+    no_non_short_edges = False
+    if non_short_edges == None:
+        no_non_short_edges = True
+    else:
+        if len(non_short_edges) == 0:
+            no_non_short_edges = True
+
     # handles non_short_edges for ax1 and ax2
     if non_short_edges != None:
-        if len(non_short_edges) == 1 and short_edges == None:  # if single non-short-circuit 1-cycle 
+        if len(non_short_edges) == 1 and no_short_edges:  # if single non-short-circuit 1-cycle 
             ax1 = add_boundary(S, clean_orientation_2d, ax1, three_d=False, alpha0=alpha0)
             ax2 = add_boundary(S, clean_orientation_2d, ax2, three_d=False, alpha0=alpha0)
         else:
@@ -890,31 +911,32 @@ def plot_edges(S, c, edge_info, alpha0=0.8):
                     ax1.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color=colours[idx], linewidth=10, alpha=alpha0, linestyle='dotted')
                     ax2.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color=colours[idx], linewidth=10, alpha=alpha0, linestyle='dotted')
 
-        # handles sort_edges for ax1
-        if short_edges != None:
-            if len(short_edges) == 1:
-                loop = True
-            else:
-                loop = False
-            for idx, short_edge in enumerate(short_edges):
-                short_edge_clean_orientation = clean_orientation_2d[short_edge]
-                ax1 = add_boundary(S, short_edge_clean_orientation, ax1, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[idx], loop=loop)
+    # handles sort_edges for ax1
+    if short_edges != None:
+        if len(short_edges) == 1 and no_non_short_edges:
+            loop = True
+        else:
+            loop = False
+        for idx, short_edge in enumerate(short_edges):
+            short_edge_clean_orientation = clean_orientation_2d[short_edge]
+            ax1 = add_boundary(S, short_edge_clean_orientation, ax1, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[idx], loop=loop)
 
-        # handles refined_short_edges for ax2
-        if refined_short_edges != None:
-            if len(refined_short_edges) == 1:
-                loop = True
-            else:
-                loop = False
-            for idx, refined_short_edge in enumerate(refined_short_edges):
-                refined_short_edge_clean_orientation = clean_orientation_2d[refined_short_edge]
-                ax2 = add_boundary(S, refined_short_edge_clean_orientation, ax2, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[idx], loop=loop)
+    # handles refined_short_edges for ax2
+    if refined_short_edges != None:
+        if len(refined_short_edges) == 1 and no_non_short_edges:
+            loop = True
+        else:
+            loop = False
+        for idx, refined_short_edge in enumerate(refined_short_edges):
+            refined_short_edge_clean_orientation = clean_orientation_2d[refined_short_edge]
+            ax2 = add_boundary(S, refined_short_edge_clean_orientation, ax2, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[idx], loop=loop)
 
-        # if all points are associated 
-        if non_short_edges == None and short_edges == None:
-            for i, j in clean_orientation_2d:
-                ax1.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
-                ax2.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
+    # if all points are associated 
+    if non_short_edges == None and short_edges == None:
+        for i, j in clean_orientation_2d:
+            ax1.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
+            ax2.plot([S.coords[i][0], S.coords[j][0]],[S.coords[i][1], S.coords[j][1]], color='black', linewidth=10, alpha=alpha0)
+
     plt.show()
 
 
@@ -1444,9 +1466,25 @@ class Simplex:
         short_edges, non_short_edges, glued_edges, orientation, clean_orientation, same_orientation, orientation_dict, colour_dict = quotient_info
         clean_orientation_2d = convert_orientation(clean_orientation)
 
+        # handles looping of boundary orientation if no short-edges exist 
+        no_short_edges = False
+        if short_edges == None:
+            no_short_edges = True
+        else:
+            if len(short_edges) == 0:
+                no_short_edges = True
+
+        # handles looping of boundary orientation if no non-short-edges exist 
+        no_non_short_edges = False
+        if non_short_edges == None:
+            no_non_short_edges = True
+        else:
+            if len(non_short_edges) == 0:
+                no_non_short_edges = True
+
         # handles non-short-edges
         if non_short_edges != None:
-            if len(non_short_edges) == 1 and short_edges == None:  # if single non-short-circuit 1-cycle 
+            if len(non_short_edges) == 1 and no_short_edges:  # if single non-short-circuit 1-cycle 
                 ax1 = add_boundary(self, clean_orientation_2d, ax1, three_d=False, alpha0=alpha0)
                 if show_pointcloud:
                     ax2 = add_boundary(self, clean_orientation_2d, ax2, three_d=True, alpha0=alpha0)
@@ -1461,15 +1499,19 @@ class Simplex:
 
         # handles short-edges
         if short_edges != None:
+            if len(short_edges) == 1 and no_non_short_edges == True:
+                loop = True
+            else:
+                loop = False
             for idx, short_edge in enumerate(short_edges):
                 if orientation_dict[idx]:
                     short_edge_clean_orientation = clean_orientation_2d[short_edge]
                 else:
                     short_edge_clean_orientation = np.flip(clean_orientation_2d[short_edge])
 
-                ax1 = add_boundary(self, short_edge_clean_orientation, ax1, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[colour_dict[idx]], loop=False)
+                ax1 = add_boundary(self, short_edge_clean_orientation, ax1, three_d=False, alpha0=alpha0, cmap=orientation_cmaps[colour_dict[idx]], loop=loop)
                 if show_pointcloud:
-                    ax2 = add_boundary(self, short_edge_clean_orientation, ax2, three_d=True, alpha0=alpha0, cmap=orientation_cmaps[colour_dict[idx]], loop=False)
+                    ax2 = add_boundary(self, short_edge_clean_orientation, ax2, three_d=True, alpha0=alpha0, cmap=orientation_cmaps[colour_dict[idx]], loop=loop)
 
          # handles if all points are associated 
         if non_short_edges == None and short_edges == None:
