@@ -33,7 +33,7 @@ import qrml
 
 ## Usage
 
-We give a simple example of applying our algorithm to a point cloud with a thousand points, uniformly sampled from a cylinder of radius one and height six.
+We give a simple example, applying our algorithm to a point cloud with a thousand points, uniformly sampled from a cylinder of radius one and height six.
 
 ```python
 import qrml
