@@ -1097,7 +1097,7 @@ class Simplex:
         dims_vars = [self.find_safe_edges(i, visible_edges[i][0], visible_edges[i][1], threshold_var, edge_sen) for i in range(n)]
         self.edges = [np.where(self.edge_matrix[i]!=0)[0] for i in range(n)]  # ensures can see all edges to i
 
-        local_dims = [local_pca_elbow(pointcloud[edges], S1) for edges in self.edges]
+        local_dims = [local_pca_elbow(pointcloud[edges], S1) for edges in self.edges]  # NOTE : should be translated?
         self.dim = mode(local_dims, axis=None)[0][0]
         self.edge_matrix = csr_matrix(self.edge_matrix)
 
@@ -1289,7 +1289,7 @@ class Simplex:
 
             # handles plotting the boundary with orientation on the pointcloud
             if show_orientation:
-                boundary_array = np.asarray(list(boundary_edges)).reshape(-1)
+                boundary_array = np.asarray(list(orientation)).reshape(-1)
                 ax1 = add_boundary(self, orientation, ax1, three_d=True)
 
                 # plots the edges for neighbouring points (in the 1-skeleton) of the pointcloud
