@@ -1,17 +1,17 @@
-import numpy                as np
-from sklearn.neighbors      import KDTree
-from sklearn.decomposition  import PCA
-from scipy.sparse           import csr_matrix
-from scipy.sparse.csgraph   import dijkstra
-from scipy.spatial          import distance_matrix
-from scipy.stats            import mode
-from scipy.spatial          import Delaunay
-import matplotlib.pyplot    as plt
-from matplotlib.collections import LineCollection
+import numpy                    as np
+from sklearn.neighbors          import KDTree
+from sklearn.decomposition      import PCA
+from scipy.sparse               import csr_matrix
+from scipy.sparse.csgraph       import dijkstra
+from scipy.spatial              import distance_matrix
+from scipy.stats                import mode
+from scipy.spatial              import Delaunay
+import matplotlib.pyplot        as plt
+from matplotlib.collections     import LineCollection
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
-import gurobipy             as gp
-from gurobipy               import GRB
-from kneed                  import KneeLocator
+import gurobipy                 as gp
+from gurobipy                   import GRB
+from kneed                      import KneeLocator
 import warnings
 
 warnings.filterwarnings("ignore")
